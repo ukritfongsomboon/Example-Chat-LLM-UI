@@ -467,6 +467,34 @@
     .upload-btn.has-image { border-color: #667eea; color: #667eea; background: #f0f0ff; }
     .upload-btn svg { width: 18px; height: 18px; }
 
+    .mic-btn {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      border: 1.5px solid #dee2e6;
+      background: #fff;
+      color: #6c757d;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .mic-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+    .mic-btn.recording {
+      border-color: #ef4444;
+      background: #fef2f2;
+      color: #ef4444;
+      animation: micPulse 1s ease-in-out infinite;
+    }
+
+    .mic-btn svg { width: 18px; height: 18px; }
+
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
+      50%       { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+    }
+
     /* Image preview */
     .image-preview {
       position: relative;
@@ -552,6 +580,14 @@
       <div id="imagePreviewArea"></div>
       <div class="input-row">
         <input type="file" id="fileInput" accept="image/*" style="display:none">
+        <button class="mic-btn" id="micBtn" title="Speech to text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
         <button class="upload-btn" id="uploadBtn" title="Attach image" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
@@ -588,6 +624,66 @@
     const imagePreviewArea  = document.getElementById('imagePreviewArea');
 
     let pendingImage = null; // base64 data URL
+
+    // ── Speech to Text ────────────────────────────────────────────────────────
+    const micBtn = document.getElementById('micBtn');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      micBtn.title = 'Speech recognition not supported in this browser';
+      micBtn.style.opacity = '0.3';
+      micBtn.style.cursor = 'not-allowed';
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'th-TH';
+      recognition.interimResults = true;
+      recognition.continuous = false;
+
+      let isRecording = false;
+      let interimStart = 0;
+
+      micBtn.addEventListener('click', () => {
+        if (isRecording) {
+          recognition.stop();
+        } else {
+          recognition.start();
+        }
+      });
+
+      recognition.addEventListener('start', () => {
+        isRecording = true;
+        micBtn.classList.add('recording');
+        micBtn.title = 'กำลังฟัง... คลิกเพื่อหยุด';
+        interimStart = inputEl.value.length;
+      });
+
+      recognition.addEventListener('result', (e) => {
+        let interim = '';
+        let final = '';
+        for (const result of e.results) {
+          if (result.isFinal) final += result[0].transcript;
+          else interim += result[0].transcript;
+        }
+        // Replace interim text in real-time
+        inputEl.value = inputEl.value.slice(0, interimStart) + (final || interim);
+        inputEl.style.height = 'auto';
+        inputEl.style.height = inputEl.scrollHeight + 'px';
+      });
+
+      recognition.addEventListener('end', () => {
+        isRecording = false;
+        micBtn.classList.remove('recording');
+        micBtn.title = 'Speech to text';
+        inputEl.focus();
+      });
+
+      recognition.addEventListener('error', (e) => {
+        isRecording = false;
+        micBtn.classList.remove('recording');
+        micBtn.title = 'Speech to text';
+        if (e.error !== 'aborted') console.warn('Speech error:', e.error);
+      });
+    }
 
     visionToggle.addEventListener('change', () => {
       uploadBtn.style.display = visionToggle.checked ? 'flex' : 'none';
@@ -849,7 +945,7 @@
         let thinkingEl  = null;
         let isThinking  = false;
         let fullContent = '';
-        let toolBadge   = null;
+        let toolBadges  = [];
         let tokenCount = 0;
 
         const reader  = res.body.getReader();
@@ -880,10 +976,11 @@
               lastEvent = '';
               try {
                 const { name } = JSON.parse(raw);
-                toolBadge = document.createElement('div');
-                toolBadge.className = 'tool-badge';
-                toolBadge.innerHTML = `<span class="tool-spinner"></span> กำลังใช้ <strong>${name}</strong>`;
-                content.insertBefore(toolBadge, bubble);
+                const badge = document.createElement('div');
+                badge.className = 'tool-badge';
+                badge.innerHTML = `<span class="tool-spinner"></span> กำลังใช้ <strong>${name}</strong>`;
+                content.insertBefore(badge, bubble);
+                toolBadges.push(badge);
                 scrollBottom();
               } catch (_) {}
               continue;
@@ -901,7 +998,8 @@
 
             if (raw === '[DONE]') {
               if (thinkingEl) finalizeThinkingBlock(thinkingEl.header);
-              if (toolBadge) toolBadge.remove();
+              toolBadges.forEach(b => b.remove());
+              toolBadges = [];
               bubble.classList.remove('streaming');
               bubble.innerHTML = DOMPurify.sanitize(marked.parse(fullContent));
               // Show confidence score (heuristic: based on response length & uniqueness)
