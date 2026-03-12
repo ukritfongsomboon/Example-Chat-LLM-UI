@@ -138,6 +138,20 @@
 
     .message.user .msg-time { align-self: flex-end; }
 
+    .feedback-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0 2px;
+      opacity: 0.4;
+      transition: opacity 0.2s, transform 0.15s;
+      line-height: 1;
+    }
+
+    .feedback-btn:hover { opacity: 1; transform: scale(1.2); }
+    .feedback-btn.active { opacity: 1; }
+
     .message .bubble {
       padding: 10px 14px;
       border-radius: 18px;
@@ -674,6 +688,28 @@
       const time = document.createElement('div');
       time.className = 'msg-time';
       time.textContent = nowTime();
+
+      // Like / Dislike buttons
+      const likeBtn    = document.createElement('button');
+      likeBtn.className = 'feedback-btn';
+      likeBtn.textContent = '👍';
+
+      const dislikeBtn  = document.createElement('button');
+      dislikeBtn.className = 'feedback-btn';
+      dislikeBtn.textContent = '👎';
+
+      likeBtn.addEventListener('click', () => {
+        likeBtn.classList.toggle('active');
+        dislikeBtn.classList.remove('active');
+      });
+
+      dislikeBtn.addEventListener('click', () => {
+        dislikeBtn.classList.toggle('active');
+        likeBtn.classList.remove('active');
+      });
+
+      time.appendChild(likeBtn);
+      time.appendChild(dislikeBtn);
 
       content.appendChild(bubble);
       content.appendChild(time);
