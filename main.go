@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	apiURL       string
-	modelDefault string
+	apiURL        string
+	modelDefault  string
 	modelThinking string
+	systemPrompt  string
 )
 
 // ── Request from frontend ────────────────────────────────────────────────────
@@ -275,6 +276,8 @@ func main() {
 		log.Fatal("MODEL_THINKING is not set. Please add it to .env file")
 	}
 
+	systemPrompt = os.Getenv("SYSTEM_PROMPT")
+
 	app := fiber.New(fiber.Config{CompressedFileSuffix: ""})
 
 	app.Static("/", "./web")
@@ -312,9 +315,11 @@ func chatHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	messages := []Message{
-		{Role: "user", Content: userContent},
+	messages := []Message{}
+	if systemPrompt != "" {
+		messages = append(messages, Message{Role: "system", Content: systemPrompt})
 	}
+	messages = append(messages, Message{Role: "user", Content: userContent})
 
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
