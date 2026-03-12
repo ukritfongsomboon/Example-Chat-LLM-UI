@@ -1,0 +1,13 @@
+# Environment
+.env
+
+# Go build output
+chat
+*.exe
+
+# Go module cache
+vendor/
+
+# macOS
+.DS_Store
+.claude
