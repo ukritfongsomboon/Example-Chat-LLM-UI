@@ -28,6 +28,7 @@ type ChatRequest struct {
 	Message    string `json:"message"`
 	Thinking   bool   `json:"thinking"`
 	Confidence bool   `json:"confidence"`
+	Image      string `json:"image"`      // base64 data URL e.g. "data:image/jpeg;base64,..."
 }
 
 // ── API payload ──────────────────────────────────────────────────────────────
@@ -50,8 +51,13 @@ type Message struct {
 }
 
 type ContentPart struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type     string    `json:"type"`
+	Text     string    `json:"text,omitempty"`
+	ImageURL *ImageURL `json:"image_url,omitempty"`
+}
+
+type ImageURL struct {
+	URL string `json:"url"`
 }
 
 // ── Tool definitions ─────────────────────────────────────────────────────────
@@ -298,11 +304,16 @@ func chatHandler(c *fiber.Ctx) error {
 
 	log.Printf("[chat] model=%s thinking=%v message=%q", model, req.Thinking, req.Message)
 
+	userContent := []ContentPart{{Type: "text", Text: req.Message}}
+	if req.Image != "" {
+		userContent = append(userContent, ContentPart{
+			Type:     "image_url",
+			ImageURL: &ImageURL{URL: req.Image},
+		})
+	}
+
 	messages := []Message{
-		{
-			Role:    "user",
-			Content: []ContentPart{{Type: "text", Text: req.Message}},
-		},
+		{Role: "user", Content: userContent},
 	}
 
 	c.Set("Content-Type", "text/event-stream")
