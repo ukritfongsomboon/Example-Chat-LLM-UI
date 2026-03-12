@@ -630,9 +630,7 @@
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      micBtn.title = 'Speech recognition not supported in this browser';
-      micBtn.style.opacity = '0.3';
-      micBtn.style.cursor = 'not-allowed';
+      micBtn.style.display = 'none';
     } else {
       const recognition = new SpeechRecognition();
       recognition.lang = 'th-TH';
